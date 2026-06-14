@@ -1,10 +1,22 @@
-
+---
+layout: single
+title: Cozyhosting - Hack The Box
+excerpt: "CozyHosting es una máquina Linux de dificultad fácil. En ella se abordan conceptos básicos de identificación de tecnologías mediante el análisis de errores, el secuestro de sesión (session hijacking) explotando una mala gestión de las cookies, y la inyección de comandos a través de campos de entrada con una sanitización deficiente. Además, se practica la ingeniería inversa de archivos JAR utilizando JD-GUI, la enumeración y exfiltración de bases de datos PostgreSQL, y finalmente, la escalada de privilegios mediante el abuso de permisos elevados en binarios críticos (SSH)."
+date: 2026-03-05
+classes: wide
+header:
+  teaser: /assets/images/cozyhosting/logo.png
+  teaser_home_page: true
+  icon: /assets/images/hackthebox.webp
+categories:
+  - hackthebox
+tags: ["session-hijacking", "spring-boot", "postgresql-enumeration"]
 ---
 
 # Información
 ---
 
-![logo](../Cozyhosting/Images/logo.png)
+![image](/assets/images/cozyhosting/logo.png)
 
 - **Nombre**: Cozyhosting
 - **Plataforma**: Hack The Box
@@ -12,7 +24,7 @@
 - **Estatus**: Retirada
 - **Creador**: commandercool
 - **Sistema operativo**: Linux
-- **Técnicas empleadas**: Spring Boote Web Page Enumeration, Information Leakage, Cookie Hijacking, Command Injection + Filter Bypass, JAR archive inspection with JD-GUI + Information Leakage, PostgreSQL Database Enumeration, Cracking Hashes, Abusing Sudoers Privilege (ssh) (Privilege Escalation)
+- **Técnicas empleadas**: Spring Boot Web Page Enumeration, Information Leakage, Cookie Hijacking, Command Injection + Filter Bypass, JAR archive inspection with JD-GUI + Information Leakage, PostgreSQL Database Enumeration, Cracking Hashes, Abusing Sudoers Privilege (ssh) (Privilege Escalation)
 
 ---
 
@@ -28,7 +40,7 @@ Se inició la fase de reconocimiento verificando la disponibilidad del objetivo 
 ping -c 4 10.129.3.204
 ```
 
-![ping](../Cozyhosting/Images/ping.png)
+![image](/assets/images/cozyhosting/ping.png)
 
 **Análisis de resultado:**
 El objetivo respondió satisfactoriamente a todas las solicitudes **ICMP**, reportando un **0% de pérdida de paquetes**, lo que confirma una conectividad estable con el host.
@@ -50,7 +62,7 @@ nmap -p- --open -sS --min-rate 5000 -Pn -n 10.129.3.204 -oN full-ports.txt
 ### Resultados:
 El escaneo identificó únicamente dos puertos en estado **open**: **22 (SSH)** y **80 (HTTP)**. En consecuencia, el siguiente paso lógico consiste en realizar una **enumeración de servicios y versiones** para identificar las tecnologías en ejecución y determinar con precisión la superficie de ataque disponible.
 
-![full-ports](../Cozyhosting/Images/full-ports.png)
+![image](/assets/images/cozyhosting/full-ports.png)
 
 ---
 # 2. Enumeración
@@ -66,7 +78,7 @@ Una vez identificados los puertos abiertos, se realizó una fase de inspección 
 nmap -p 22,80 -sCV 10.129.3.204 -oN nse-versions.txt
 ```
 
-![service-nse](../Cozyhosting/Images/service-nse.png)
+![image](/assets/images/cozyhosting/service-nse.png)
 
 ### Resultados:
 Tras la ejecución del escaneo, se identificaron los siguientes vectores y características técnicas:
@@ -113,7 +125,7 @@ Se realizó una inspección visual de la aplicación, identificando cuatro secci
 
 Tras un análisis preliminar, se determinó que la mayoría de estas secciones presentan contenido estático sin relevancia crítica para la fase de enumeración, con la excepción del **panel de Login**. Este último se identifica como un punto de interés primordial, ya que representa un vector de entrada directo para posibles ataques de fuerza bruta, derivación de credenciales o inyección de código.
 
-![web](../Cozyhosting/Images/web.png)
+![image](/assets/images/cozyhosting/web.png)
 
 Tras someter el formulario de autenticación a diversas pruebas de seguridad, se determinó que no presentaba vulnerabilidades superficiales explotables. En concreto, se descartaron los siguientes vectores:
 
@@ -125,7 +137,7 @@ Tras someter el formulario de autenticación a diversas pruebas de seguridad, se
 
 Ante la robustez del panel de acceso principal, se procedió a realizar una **búsqueda activa de directorios y subdominios** mediante técnicas de _fuzzing_. El objetivo de esta fase es ampliar la superficie de ataque y localizar rutas ocultas, archivos de configuración expuestos o subdominios que puedan servir como un vector de entrada alternativo.
 
-![login](../Cozyhosting/Images/login.png)
+![image](/assets/images/cozyhosting/login.png)
 
 
 ---
@@ -150,7 +162,7 @@ Al acceder a dicha ruta, se visualizó una página de error genérica conocida c
 
 Este hallazgo es de alta relevancia, ya que desplaza el vector de ataque hacia la enumeración de _endpoints_ específicos de este framework.
 
-![gobuster | 800](../Cozyhosting/Images/gobuster.png)
+![image](/assets/images/cozyhosting/gobuster.png)
 
 **Fuzzing dirigido (Spring Boot)** Tras confirmar el uso de **Spring Boot**, se ejecutó una nueva fase de enumeración dirigida utilizando **Gobuster**. En esta ocasión, se sustituyó el diccionario genérico por uno especializado en esta tecnología, con el objetivo de localizar _endpoints_ de gestión y administración que no suelen estar expuestos en directorios estándar.
 
@@ -166,7 +178,7 @@ Tras el escaneo especializado, se identificó una vulnerabilidad crítica de **e
 
 En particular, se localizó un **Token de Sesión (JSESSIONID)** perteneciente al usuario **kanderson**. Este hallazgo constituye un vector de ataque directo mediante la técnica de **Session Hijacking** (secuestro de sesión). Al suplantar esta cookie en el navegador, es posible omitir el proceso de autenticación y acceder al sistema con los privilegios del usuario afectado sin necesidad de conocer sus credenciales.
 
-![cookie-leaked | 800](../Cozyhosting/Images/actuator-sessions.png)
+![image](/assets/images/cozyhosting/actuator-sessions.png)
 
 ---
 # 3. Explotación (Acceso inicial)
@@ -178,7 +190,7 @@ Tras suplantar el token de sesión del usuario **kanderson**, se validó el acce
 
 Durante la auditoría de la zona privada, una inspección técnica detallada permitió localizar una vulnerabilidad crítica en una de las funciones del panel. Se identificó un punto de inyección que permite la **Ejecución Remota de Comandos (RCE)**, lo que facultaría a un atacante para ejecutar instrucciones directamente en el servidor subyacente con los privilegios del servicio web.
 
-![kanderson-login](../Cozyhosting/Images/kanderson-login.png)
+![image](/assets/images/cozyhosting/kanderson-login.png)
 
 ### dentificación del vector de intrusión (RCE)
 
@@ -211,7 +223,7 @@ La lógica del ataque consistió en utilizar el carácter _pipe_ (`|`) para inte
 
 Para verificar la recepción de los paquetes **ICMP**, se mantuvo una escucha activa en la máquina local mediante **tcpdump**:
 
-![ssh-web](../Cozyhosting/Images/ssh-web.png)
+![image](/assets/images/cozyhosting/ssh-web.png)
 
 **Comando ejecutado en la máquina atacante:**
 
@@ -225,7 +237,7 @@ La recepción exitosa de los paquetes de eco (_echo requests_) en la máquina lo
 
 Una vez validada la capacidad de ejecución y la conectividad de red entre ambos extremos, el siguiente paso lógico es la explotación definitiva mediante la inyección de una **Reverse Shell**. Esto permitirá establecer un canal de comunicación interactivo con el servidor para proceder con la fase de post-explotación.
 
-![poc](../Cozyhosting/Images/poc.png)
+![image](/assets/images/cozyhosting/poc.png)
 
 ---
 
@@ -256,7 +268,7 @@ Tras la ejecución del vector de ataque, se estableció una conexión reversa ex
 
 Al tratarse de una shell básica (no interactiva), el siguiente paso crítico fue el **tratamiento de la TTY**. Este procedimiento es esencial para estabilizar la conexión, permitiendo el uso de comandos interactivos, el autocompletado con tabulador y la gestión adecuada de señales de teclado (como el manejo de procesos en segundo plano).
 
-![intrusion](../Cozyhosting/Images/intrusion.png)
+![image](/assets/images/cozyhosting/intrusion.png)
 
 ### Estabilización de la TTY
 
@@ -320,7 +332,7 @@ Con el objetivo de profundizar en la lógica de la aplicación y buscar otras po
 - **Usuario:** `postgres`
 - **Contraseña:** `Vg&nvzAQ7XxR`
 
-![info-leaked](../Cozyhosting/Images/info-leaked.png)
+![image](/assets/images/cozyhosting/info-leaked.png)
 
 ---
 
@@ -336,7 +348,7 @@ psql -h localhost -U postgres -d cozyhosting
 
 entro de la base de datos, se identificó la tabla `users`, la cual almacenaba información sensible de las cuentas del sistema. La consulta de los registros permitió la extracción de los identificadores y _hashes_ de contraseña de los usuarios **kanderson** y **admin**.
 
-![cozy-db](../Cozyhosting/Images/cozy-db.png)
+![image](/assets/images/cozyhosting/cozy-db.png)
 
 Con los _hashes_ exfiltrados, el siguiente paso lógico es realizar un ataque de **fuerza bruta/diccionario** mediante la herramienta **Hashcat**. Dado que los _hashes_ comienzan con `$2a$`, se identifica que utilizan el algoritmo **bcrypt**, lo que requiere una configuración específica de modo en la herramienta de ataque para procesar la carga de trabajo de forma eficiente.
 
@@ -367,7 +379,7 @@ Tras confirmar la existencia del usuario **josh** en el sistema y disponer de la
 
 Se ejecutó el cambio de contexto de usuario directamente desde la shell activa. El acceso fue exitoso, permitiendo la migración desde el usuario de bajos privilegios `app` hacia el usuario de sistema `josh`. Con este movimiento lateral, se obtuvo acceso al directorio personal del usuario y a la primera bandera de seguridad del sistema (`user.txt`).
 
-![josh-login | 800](../Cozyhosting/Images/josh-login.png)
+![image](/assets/images/cozyhosting/josh-login.png)
 
 
 ---
@@ -411,7 +423,7 @@ bash
 cat /root/root.txt
 ```
 
-![root-login | 800](../Cozyhosting/Images/root-login.png)
+![image](/assets/images/cozyhosting/root-login.png)
 
 ---
 

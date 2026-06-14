@@ -1,11 +1,23 @@
-
+---
+layout: single
+title: Chemistry - Hack The Box
+excerpt: "Chemistry es una máquina Linux clasificada como Fácil. Su temática gira en torno a una aplicación web llamada CIF Analyzer, diseñada para que los usuarios suban y analicen archivos de datos cristalsgráficos (.cif). El núcleo de la máquina expone los peligros de utilizar funciones de evaluación dinámica de código (eval()) en librerías de procesamiento de datos y la presencia de servicios locales desactualizados expuestos a fallos de control de rutas."
+date: 2026-03-05
+classes: wide
+header:
+  teaser: /assets/images/chemistry/logo.png
+  teaser_home_page: true
+  icon: /assets/images/hackthebox.webp
+categories:
+  - hackthebox
+tags: ["CVE-2024-23334", "Local-File-Inclusion", "Sqlite3-enumeration", "Deserialization-Python"]
 ---
 
 # Información:
 
 ---
 
-![logo](/assets/images/logo.png)
+![image](/assets/images/chemistry/logo.png)
 
 
 - **Nombre**: Chemistry
@@ -41,7 +53,7 @@ Se confirmó la conectividad con el objetivo ejecutando un `ping` de cuatro traz
 ping -c 4 10.129.231.170
 ```
 
-![ping | 800](/assets/images/ping.png)
+![image](/assets/images/chemistry/ping.png)
 
 **Enumeración Inicial y Fingerprinting** Tras realizar un envío de 4 paquetes ICMP, se observa un **0% de pérdida de paquetes**, lo que confirma una conectividad estable con el objetivo. Un detalle relevante es el valor del **TTL (Time To Live)** obtenido, el cual es de **63** (o cercano a 64). Basándome en los valores por defecto de la pila TCP/IP, este dato me permite inferir que el sistema operativo de la máquina es, muy probablemente, **Linux**.
 
@@ -99,7 +111,7 @@ nmap -p 22,5000 -sCV 10.129.231.170 -oN versions-nse.txt
 
 #### Análisis de resultados:
 
-![version-nse | 800](/assets/images/version-nse.png)
+![image](/assets/images/chemistry/version-nse.png)
 
 Los resultados detallados de Nmap proporcionan datos críticos sobre el stack tecnológico del objetivo:
 
@@ -150,7 +162,7 @@ Una vez dentro, identifiqué una funcionalidad destinada a la **carga de archivo
 - **Pruebas de Intrusión (Fuzzing de extensiones):** Intenté subir archivos con extensiones `.txt` y `.py` (aprovechando el conocimiento previo de que el backend utiliza Python), pero el servicio los rechazó o no los procesó correctamente.
 - **Recolección de Artefactos:** La plataforma proporciona un **archivo de ejemplo válido**. Este recurso es crítico, ya que permite analizar la estructura interna que el servidor espera procesar y buscar posibles vulnerabilidades de inyección o deserialización dentro de dicho formato.
 
-![login](/assets/images/login.png)
+![image](/assets/images/chemistry/login.png)
 
 #### Enumeración de directorios
 
@@ -171,7 +183,7 @@ Tras el escaneo, se identificaron varios directorios. La mayoría correspondían
     - **Hipótesis:** Dado el nombre del directorio y el comportamiento de la aplicación, este endpoint es probablemente el receptor de las peticiones `POST` cuando un usuario carga un archivo **.cif**.
     - **Superficie de ataque:** Este hallazgo confirma que `/upload` es el punto de interacción entre el usuario y el backend de procesamiento de archivos, convirtiéndolo en el **objetivo principal** para pruebas de inyección o manipulación de datos.
 
-![directory-discovery | 800 x 300](/assets/images/directory-discovery.png)
+![image](/assets/images/chemistry/directory-discovery.png)
 
 ##### **Conclusión de la exploración:** 
 
@@ -208,7 +220,7 @@ tcpdump -i tun0 icmp
 
 **Resultado:** La recepción de trazas ICMP en `tcpdump` confirma la **Ejecución Remota de Comandos (RCE)** con privilegios del usuario que corre el servicio web.
 
-![rce-confirmation](/assets/images/rce-confirmation.png)
+![image](/assets/images/chemistry/rce-confirmation.png)
 
 ---
 
@@ -236,7 +248,7 @@ Una vez establecida la sesión, se validó la identidad del usuario y el context
 - **Resultado:** `app`
 - **Estado:** Acceso exitoso como usuario de bajos privilegios.
 
-![reverse-shell](/assets/images/reverse-shell.png)
+![image](/assets/images/chemistry/reverse-shell.png)
 
 ---
 
@@ -325,7 +337,7 @@ Para confirmar si estas credenciales permitían acceso al sistema operativo, ver
 ssh rosa@10.129.231.170
 ```
 
-![intrusion | 800](/assets/images/intrusion.png)
+![image](/assets/images/chemistry/intrusion.png)
 
 
 ---
@@ -372,7 +384,7 @@ Tras establecer el túnel SSH y acceder a `http://127.0.0.1:8080`, una inspecci�
 
 Dada la naturaleza del servicio, el siguiente paso crítico consiste en profundizar en la **identificación del proceso** a nivel de sistema operativo. El objetivo es determinar el binario en ejecución y, fundamentalmente, el contexto de privilegios (usuario) bajo el cual corre.
 
-![site-monitor](/assets/images/site-monitor.png)
+![image](/assets/images/chemistry/site-monitor.png)
 
 **Revisión de procesos:**
 Con el objetivo de determinar el contexto de ejecución del servicio en el puerto **8080**, se procedió a realizar una correlación entre el socket abierto y su correspondiente identificador de proceso (**PID**).
@@ -471,7 +483,7 @@ Para evadir esta restricción, se procedió a aplicar **URL Encoding** a la secu
 
 **Resultado:** La solicitud fue procesada con éxito, devolviendo el contenido de `root.txt`. Esto confirma no solo la vulnerabilidad **CVE-2024-23334**, sino también que el servicio web tiene privilegios totales sobre el sistema de archivos, completando así el vector de escalada de privilegios.
 
-![root-flag](/assets/images/root-flag.png)
+![image](/assets/images/chemistry/root-flag.png)
 
 ---
 
@@ -509,7 +521,7 @@ ssh -i id_rsa root@10.129.231.170
 
 Al ingresar exitosamente sin necesidad de contraseña, se confirma el compromiso total del sistema. La vulnerabilidad inicial en la configuración de archivos estáticos de `aiohttp` permitió saltar de un acceso de usuario limitado (`rosa`) a un control absoluto como `root`.
 
-![complete | 600](/assets/images/complete.png)
+![image](/assets/images/chemistry/complete.png)
 
 ---
 
